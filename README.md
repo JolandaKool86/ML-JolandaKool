@@ -7,6 +7,7 @@ In addition to that, you are always telling weird stories about how vision model
 His hopes are you are able to hypertune the models, but that you might also come up with some crazy creative ideas about how to improve the models.
 
 Name: Jolanda Kool
+
 Student number: 1178611
 
 ## The data
