@@ -7,7 +7,6 @@ In addition to that, you are always telling weird stories about how vision model
 His hopes are you are able to hypertune the models, but that you might also come up with some crazy creative ideas about how to improve the models.
 
 Name: Jolanda Kool
-
 Student number: 1178611
 
 ## The data
@@ -41,6 +40,16 @@ someone with your skill level.
 
 ## Models
 There are two notebooks with models. He has tried two approaches: a 2D approach, and a 1D approach. Yes, he is aware that this is a time series, but he has read that 2D approaches can work well for timeseries, and he has tried it out.
+
+Run the hyperparameter tuning:
+python hypertune.py cnn
+or
+python hypertune.py transformer
+
+And run the main training pipeline with:
+python main.py cnn
+or
+python main.py transformer
 
 ## Your task
 You can find the models in `src/models.py`, but they are also in the notebooks themselves.

@@ -1,6 +1,6 @@
 # main.py
 import torch
-from torch import nn, optim
+from torch import nn
 from datasets import HeartDataset1D, HeartDataset2D
 from models import CNN, Transformer
 from metrics import Accuracy, F1Score, Precision, Recall
@@ -10,20 +10,17 @@ from sklearn.metrics import confusion_matrix
 import mlflow
 from mltrainer import Trainer, TrainerSettings, ReportTypes
 import json
+import matplotlib.pyplot as plt
+import sys
 from mads_datasets.base import BaseDatastreamer
 from mltrainer.preprocessors import BasePreprocessor
-import sys
-import matplotlib.pyplot as plt
 
 def load_config(model_type):
     with open('config.json', 'r') as f:
         all_configs = json.load(f)
     return all_configs[model_type]
 
-def main(model_type):
-    # Load configuration
-    config = load_config(model_type)
-
+def train(config, model_type):
     # Device configuration
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -63,7 +60,7 @@ def main(model_type):
         logdir=config['logdir'],
         train_steps=len(trainstreamer),
         valid_steps=len(teststreamer),
-        reporttypes=[getattr(ReportTypes, rt) for rt in config['report_types']],
+        reporttypes=[ReportTypes.TENSORBOARD, ReportTypes.MLFLOW],
         scheduler_kwargs=None,
         earlystop_kwargs=None
     )
@@ -90,6 +87,7 @@ def main(model_type):
             traindataloader=trainstreamer.stream(),
             validdataloader=teststreamer.stream(),
             scheduler=None,
+            device=device
         )
         trainer.loop()
 
@@ -119,5 +117,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     model_type = sys.argv[1]
-    main(model_type)
-
+    config = load_config(model_type)
+    train(config, model_type)

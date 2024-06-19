@@ -1,0 +1,6 @@
+{
+  "batch_size": 64,
+  "hidden": 77,
+  "learning_rate": 7.54181734536718e-05,
+  "num_layers": 4
+}

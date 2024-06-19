@@ -1,0 +1,23 @@
+Failure # 1 (occurred at 2024-06-19_10-25-25)
+[36mray::ImplicitFunc.train()[39m (pid=20150, ip=10.0.0.16, actor_id=220eb0f1a33c6bcee54f629001000000, repr=train_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/azureuser/code/mads-exam-24/.venv/lib/python3.11/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/azureuser/code/mads-exam-24/.venv/lib/python3.11/site-packages/ray/air/_internal/util.py", line 98, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/azureuser/code/mads-exam-24/.venv/lib/python3.11/site-packages/ray/tune/trainable/function_trainable.py", line 45, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/azureuser/code/mads-exam-24/.venv/lib/python3.11/site-packages/ray/tune/trainable/function_trainable.py", line 248, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/azureuser/code/mads-exam-24/.venv/lib/python3.11/site-packages/ray/tune/trainable/util.py", line 130, in inner
+    return trainable(config, **fn_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/azureuser/code/mads-exam-24/src/hypertune.py", line 33, in train_model
+    trainfile = Path(config['trainfile']).resolve()
+                     ~~~~~~^^^^^^^^^^^^^
+KeyError: 'trainfile'
