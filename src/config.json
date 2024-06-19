@@ -1,0 +1,17 @@
+{
+    "hidden": 16,
+    "num_layers": 1,
+    "num_classes": 2,
+    "shape": [16, 12],
+    "batch_size": 32,
+    "epochs": 5,
+    "learning_rate": 0.001,
+    "trainfile": "../data/heart_train.parq",
+    "testfile": "../data/heart_test.parq",
+    "logdir": "mlruns/heart2D",
+    "experiment_name": "2D conv model",
+    "database_uri": "sqlite:///mads_exam.db",
+    "model_name": "Conv2D",
+    "dataset_name": "heart_small_binary",
+    "report_types": ["TENSORBOARD", "MLFLOW"]
+}
