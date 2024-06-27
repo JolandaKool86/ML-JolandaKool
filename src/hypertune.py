@@ -1,6 +1,6 @@
 # hypertune.py
 import torch
-from torch import nn, optim
+from torch import nn
 from datasets import HeartDataset1D, HeartDataset2D
 from models import CNN, Transformer
 from metrics import Accuracy, F1Score, Precision, Recall
@@ -12,29 +12,30 @@ from mltrainer import Trainer, TrainerSettings, ReportTypes
 import json
 import matplotlib.pyplot as plt
 import sys
+from mads_datasets.base import BaseDatastreamer
+from mltrainer.preprocessors import BasePreprocessor
 import ray
 from ray import tune
 from ray.tune import CLIReporter
-from ray.tune.schedulers import HyperBandForBOHB
+from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
 from ray.tune.search.bohb import TuneBOHB
-from mads_datasets.base import BaseDatastreamer
-from mltrainer.preprocessors import BasePreprocessor
+from loguru import logger
+from typing import Dict
 
-def load_config(model_type):
-    with open('config.json', 'r') as f:
-        all_configs = json.load(f)
-    return all_configs[model_type]
+# def load_config(model_type):
+#     with open('config.json', 'r') as f:
+#         all_configs = json.load(f)
+#     return all_configs[model_type]
 
-def train_model(config, model_type):
+def train(config):
     # Device configuration
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load datasets
     trainfile = Path(config['trainfile']).resolve()
     testfile = Path(config['testfile']).resolve()
-    traindataset = HeartDataset1D(trainfile, target="target") if model_type == "transformer" else HeartDataset2D(trainfile, target="target", shape=tuple(config['shape']))
-    testdataset = HeartDataset1D(testfile, target="target") if model_type == "transformer" else HeartDataset2D(testfile, target="target", shape=tuple(config['shape']))
+    traindataset = HeartDataset2D(trainfile, target="target", shape=tuple(config['shape']))
+    testdataset = HeartDataset2D(testfile, target="target", shape=tuple(config['shape']))
     traindataset.to(device)
     testdataset.to(device)
 
@@ -43,7 +44,7 @@ def train_model(config, model_type):
     teststreamer = BaseDatastreamer(testdataset, preprocessor=BasePreprocessor(), batchsize=config['batch_size'])
 
     # Initialize model
-    model = Transformer(config) if model_type == "transformer" else CNN(config)
+    model = CNN(config)
     model.to(device)
 
     # Define metrics
@@ -66,14 +67,14 @@ def train_model(config, model_type):
         logdir=config['logdir'],
         train_steps=len(trainstreamer),
         valid_steps=len(teststreamer),
-        reporttypes=[ReportTypes.RAY],
+        reporttypes=[ReportTypes.TENSORBOARD, ReportTypes.MLFLOW],
         scheduler_kwargs=None,
         earlystop_kwargs=None
     )
 
     # Training
     with mlflow.start_run():
-        optimizer = optim.Adam(model.parameters(), lr=config['learning_rate'])
+        optimizer = torch.optim.Adam
         loss_fn = nn.CrossEntropyLoss()
 
         mlflow.set_tag("model", config['model_name'])
@@ -97,85 +98,48 @@ def train_model(config, model_type):
         )
         trainer.loop()
 
-    # Evaluation
-    y_true = []
-    y_pred = []
+if __name__ == "__main__":
+    ray.init()
 
-    testdata = teststreamer.stream()
-    for _ in range(len(teststreamer)):
-        X, y = next(testdata)
-        yhat = model(X)
-        yhat = yhat.argmax(dim=1)
-        y_pred.append(yhat.cpu().tolist())
-        y_true.append(y.cpu().tolist())
+    data_dir = Path("../data/heart_train.parq").resolve()
+    if not data_dir.exists():
+        data_dir.mkdir(parents=True)
+        logger.info(f"Created {data_dir}")
+    tune_dir = Path("models/ray").resolve()
 
-    yhat = [x for y in y_pred for x in y]
-    y = [x for y in y_true for x in y]
-
-    cfm = confusion_matrix(y, yhat)
-    plot = sns.heatmap(cfm, annot=True, fmt=".3f", cmap='viridis')
-    plot.set(xlabel="Predicted", ylabel="Target")
-    plt.show()
-
-    accuracy_score = Accuracy()(y, yhat)
-    tune.report(accuracy=accuracy_score)
-
-def hypertune(model_type):
-    # Load initial configuration
-    config = load_config(model_type)
-
-    # Ensure local_dir is an absolute path
-    storage_path = Path(config["logdir"]).resolve()
-
-    # Define search space for hyperparameters
-    search_space = {
-        "batch_size": tune.choice([16, 32, 64]),
-        "learning_rate": tune.loguniform(1e-5, 1e-2)
+    config = {
+        "input_size": 3,
+        "output_size": 20,
+        "tune_dir": tune_dir,
+        "data_dir": data_dir,
+        "hidden_size": tune.randint(16, 128),
+        "dropout": tune.uniform(0.0, 0.3),
+        "num_layers": tune.randint(2, 5),
     }
 
-    if model_type == "cnn":
-        search_space.update({
-            "hidden": tune.randint(16, 128),
-            "num_layers": tune.randint(1, 5),
-        })
-    else:
-        search_space.update({
-            "hidden": tune.randint(64, 256),
-            "num_heads": tune.randint(2, 8),
-            "num_blocks": tune.randint(1, 6),
-            "dropout": tune.uniform(0.1, 0.5),
-        })
+    reporter = CLIReporter()
+    reporter.add_metric_column("Accuracy")
 
-    reporter = CLIReporter(metric_columns=["accuracy", "training_iteration"])
     bohb_hyperband = HyperBandForBOHB(
         time_attr="training_iteration",
         max_t=50,
         reduction_factor=3,
         stop_last_trials=False,
     )
+
     bohb_search = TuneBOHB()
 
     analysis = tune.run(
-        tune.with_parameters(train_model, model_type=model_type),
-        resources_per_trial={"cpu": 2, "gpu": 0},
-        metric="accuracy",
-        mode="max",
-        config=search_space,
-        num_samples=50,
-        scheduler=bohb_hyperband,
-        search_alg=bohb_search,
+        train,
+        config=config,
+        metric="test_loss",
+        mode="min",
         progress_reporter=reporter,
-        storage_path=str(storage_path)  # Convert to string
+        storage_path=str(config["tune_dir"]),
+        num_samples=50,
+        search_alg=bohb_search,
+        scheduler=bohb_hyperband,
+        verbose=1,
     )
 
-    print(f"Best hyperparameters found: {analysis.best_config}")
-
-if __name__ == "__main__":
-    if len(sys.argv) != 2 or sys.argv[1] not in ["cnn", "transformer"]:
-        print("Usage: python hypertune.py <cnn|transformer>")
-        sys.exit(1)
-
-    model_type = sys.argv[1]
-    ray.init()
-    hypertune(model_type)
     ray.shutdown()
