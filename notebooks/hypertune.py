@@ -86,6 +86,7 @@ def train(config):
 # Define the hyperparameter search space
 config_space = {
     'hidden': tune.randint(16, 128),
+    'dropout_rate': 0.25,
 #    'num_layers': tune.randint(1, 6),
 #    'epochs': tune.choice([5, 10, 20])
 }
