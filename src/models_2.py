@@ -23,7 +23,6 @@ class CNN(nn.Module):
     def __init__(self, config: dict) -> None:
         super().__init__()
         hidden = config["hidden"]
-        dropout = config['dropout']
         self.convolutions = nn.ModuleList(
             [
                 ConvBlock(1, hidden),
@@ -42,7 +41,6 @@ class CNN(nn.Module):
             nn.Flatten(),
             nn.Linear(activation_map_size * hidden, hidden),
             nn.ReLU(),
-            nn.Dropout(dropout),  # Add dropout here
             nn.Linear(hidden, config["num_classes"]),
         )
 
@@ -51,15 +49,6 @@ class CNN(nn.Module):
             x = conv(x)
         x = self.dense(x)
         return x
-    
-class WeightedCrossEntropyLoss(nn.Module):
-    def __init__(self, weight):
-        super(WeightedCrossEntropyLoss, self).__init__()
-        self.weight = weight
-        self.criterion = nn.CrossEntropyLoss(weight=self.weight)
-    
-    def forward(self, outputs, targets):
-        return self.criterion(outputs, targets)
 
 
 class PositionalEncoding(nn.Module):
