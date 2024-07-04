@@ -5,6 +5,67 @@ from loguru import logger
 from torch import Tensor, nn
 
 
+# class ConvBlock(nn.Module):
+#     def __init__(self, in_channels, out_channels, dropout):
+#         super().__init__()
+#   #      dropout = config['dropout']
+#         self.conv = nn.Sequential(
+#             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+#             nn.BatchNorm2d(out_channels),
+#             nn.ReLU(),
+#             nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+#             nn.BatchNorm2d(out_channels),
+#             nn.ReLU(),
+#    #         nn.MaxPool2d(kernel_size=2, stride=2),
+#             nn.Dropout(dropout)
+#         )
+
+#         # Define a 1x1 convolution to match the dimensions if necessary
+#         self.match_dimensions = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1) if in_channels != out_channels else nn.Identity()
+        
+#         # BatchNorm layer after the addition of skip connection
+#         self.final_norm = nn.BatchNorm2d(out_channels)
+
+#     def forward(self, x):
+#         identity = x.clone() # Save the input for the skip connection
+#         x = self.conv(x) # Pass through the convolutional block
+#         identity = self.match_dimensions(identity) # Match dimensions if necessary
+#         x += identity # Add the original input (skip connection)
+#         x = self.final_norm(x) # Normalize the output
+#         return x
+
+
+# class CNN(nn.Module):
+#     def __init__(self, config: dict) -> None:
+#         super().__init__()
+#         hidden = config['hidden']
+#         dropout = config['dropout']
+#         self.convolutions = nn.ModuleList([
+#             ConvBlock(1, hidden, dropout),
+#         ])
+
+
+#         for i in range(config['num_layers']):
+#             self.convolutions.extend([ConvBlock(hidden, hidden, dropout), nn.ReLU()])
+#         self.convolutions.append(nn.MaxPool2d(2, 2))
+
+#         self.dense = nn.Sequential(
+#             nn.Flatten(),
+#             nn.Linear((8*6) * hidden, hidden),
+#             nn.ReLU(),
+#             nn.Dropout(dropout),  # Add dropout here
+#             nn.Linear(hidden, config['num_classes']),
+#             nn.Sigmoid()
+#         )
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         for conv in self.convolutions:
+#             x = conv(x)
+# #            print(f'After {conv.__class__.__name__}, shape: {x.shape}')
+#         x = self.dense(x)
+#         return x
+
+
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()

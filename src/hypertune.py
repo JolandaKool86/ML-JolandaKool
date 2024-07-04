@@ -1,7 +1,6 @@
 from mads_datasets.base import BaseDatastreamer
 from mltrainer import Trainer, TrainerSettings, ReportTypes, metrics
 import models
-from models import WeightedCrossEntropyLoss
 import datasets
 import metrics
 from pathlib import Path
@@ -20,6 +19,29 @@ from typing import Dict
 
 SAMPLE_INT = tune.search.sample.Integer
 SAMPLE_FLOAT = tune.search.sample.Float
+
+# Define dataset paths and shape
+#trainfile = Path('../data/heart_train.parq').resolve()
+#testfile = Path('../data/heart_test.parq').resolve()
+#shape = (16, 12)
+
+# Define datasets and datastreamers
+#traindataset = datasets.HeartDataset2D(trainfile, target="target", shape=shape)
+#testdataset = datasets.HeartDataset2D(testfile, target="target", shape=shape)
+
+# Determine device
+#if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+#    device = torch.device("mps")
+#    print("Using MPS")
+#else:
+#    device = "cpu"
+
+#traindataset.to(device)
+#testdataset.to(device)
+
+# Create datastreamers
+#trainstreamer = BaseDatastreamer(traindataset, preprocessor=BasePreprocessor(), batchsize=32)
+#teststreamer = BaseDatastreamer(testdataset, preprocessor=BasePreprocessor(), batchsize=32)
 
 # Define the training function for Ray Tune
 def train(config: Dict):
@@ -45,13 +67,8 @@ def train(config: Dict):
     recall = metrics.Recall('macro')
     accuracy = metrics.Accuracy()
     
-    # Assuming you have the class weights defined based on your dataset
-    class_weights = torch.tensor([1.0, 3.0])  # Adjust these weights based on your class imbalance
-
-
-    # Instantiate the weighted cross-entropy loss
-    loss_fn = WeightedCrossEntropyLoss(class_weights)
-    optimizer = torch.optim.Adam
+    loss_fn = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam  # type: ignore
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
     
     settings = TrainerSettings(
@@ -90,12 +107,12 @@ if __name__ == "__main__":
 
     config = {
    #     "num_layers": tune.randint(2, 5),
-        "num_layers": 1,
-        "hidden": tune.randint(16, 256),
+        "num_layers": 3,
+        "hidden": tune.randint(32, 128),
         "num_classes": 2,
         "tune_dir": tune_dir,
         "data_dir": data_dir,
-        "dropout": tune.uniform(0.0, 0.5),
+        "dropout": tune.uniform(0.1, 0.3),
         "shape": (16, 12),
     }
 
