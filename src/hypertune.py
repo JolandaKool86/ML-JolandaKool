@@ -11,37 +11,12 @@ from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
 from ray.tune.search.bohb import TuneBOHB
-#from src import models
-#from src import datasets, metrics
 from mltrainer.preprocessors import BasePreprocessor
 from loguru import logger
 from typing import Dict
 
 SAMPLE_INT = tune.search.sample.Integer
 SAMPLE_FLOAT = tune.search.sample.Float
-
-# Define dataset paths and shape
-#trainfile = Path('../data/heart_train.parq').resolve()
-#testfile = Path('../data/heart_test.parq').resolve()
-#shape = (16, 12)
-
-# Define datasets and datastreamers
-#traindataset = datasets.HeartDataset2D(trainfile, target="target", shape=shape)
-#testdataset = datasets.HeartDataset2D(testfile, target="target", shape=shape)
-
-# Determine device
-#if torch.backends.mps.is_available() and torch.backends.mps.is_built():
-#    device = torch.device("mps")
-#    print("Using MPS")
-#else:
-#    device = "cpu"
-
-#traindataset.to(device)
-#testdataset.to(device)
-
-# Create datastreamers
-#trainstreamer = BaseDatastreamer(traindataset, preprocessor=BasePreprocessor(), batchsize=32)
-#teststreamer = BaseDatastreamer(testdataset, preprocessor=BasePreprocessor(), batchsize=32)
 
 # Define the training function for Ray Tune
 def train(config: Dict):
@@ -68,12 +43,13 @@ def train(config: Dict):
     accuracy = metrics.Accuracy()
     
     loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam  # type: ignore
+    optimizer = torch.optim.Adam
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
     
     settings = TrainerSettings(
         epochs=10,
         metrics=[accuracy, f1micro, f1macro, precision, recall],
+    #    metrics=[accuracy, f1micro, f1macro, precision, recall, ThresholdedRecall(threshold=0.2, average='micro')],
     #    logdir=f"heart2D/{config['num_layers']}layers_{config['hidden']}hidden",
         logdir=Path("."),
         train_steps=len(trainstreamer),
@@ -107,12 +83,12 @@ if __name__ == "__main__":
 
     config = {
    #     "num_layers": tune.randint(2, 5),
-        "num_layers": 3,
-        "hidden": tune.randint(32, 128),
+        "num_layers": 1,
+        "hidden": tune.randint(16, 256),
         "num_classes": 2,
         "tune_dir": tune_dir,
         "data_dir": data_dir,
-        "dropout": tune.uniform(0.1, 0.3),
+        "dropout": tune.uniform(0.0, 0.5),
         "shape": (16, 12),
     }
 

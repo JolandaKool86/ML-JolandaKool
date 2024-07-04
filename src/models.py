@@ -67,42 +67,103 @@ import torch.nn.functional as F
 #         return x
 
 
-class ConvBlock_RG(nn.Module):
-    def __init__(self, in_channels, out_channels):
+# class ConvBlock_RG(nn.Module):
+#     def __init__(self, in_channels, out_channels):
+#         super().__init__()
+#         self.conv = nn.Sequential(
+#             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+#             nn.ReLU(),
+#             nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+#             nn.ReLU(),
+#         )
+
+#     def forward(self, x):
+#         return self.conv(x)
+
+
+# class CNN_RG(nn.Module):
+#     def __init__(self, config: dict) -> None:
+#         super().__init__()
+#         hidden = config["hidden"]
+#         dropout = config['dropout']
+#         self.convolutions = nn.ModuleList(
+#             [
+#                 ConvBlock(1, hidden, dropout),
+#             ]
+#         )
+
+#         for i in range(config["num_layers"]):
+#             self.convolutions.extend([ConvBlock(hidden, hidden)])
+#         self.convolutions.append(nn.MaxPool2d(2, 2))
+
+#         activation_map_size = config["shape"][0] // 2 * config["shape"][1] // 2
+#         logger.info(f"Activation map size: {activation_map_size}")
+#         logger.info(f"Input linear: {activation_map_size * hidden}")
+
+#         self.dense = nn.Sequential(
+#             nn.Flatten(),
+#             nn.Linear(activation_map_size * hidden, hidden),
+#             nn.ReLU(),
+#             nn.Linear(hidden, config["num_classes"]),
+#         )
+
+    # def forward(self, x: torch.Tensor) -> torch.Tensor:
+    #     for conv in self.convolutions:
+    #         x = conv(x)
+    #     x = self.dense(x)
+    #     return x
+    
+class ConvBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, dropout):
         super().__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
+            nn.Dropout(dropout),
         )
 
+        # Define a 1x1 convolution to match the dimensions if necessary
+        self.match_dimensions = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1) if in_channels != out_channels else nn.Identity()
+        
+        # BatchNorm layer after the addition of skip connection
+        self.final_norm = nn.BatchNorm2d(out_channels)
+
     def forward(self, x):
-        return self.conv(x)
+        identity = x.clone() # Save the input for the skip connection
+        x = self.conv(x) # Pass through the convolutional block
+        identity = self.match_dimensions(identity) # Match dimensions if necessary
+        x += identity # Add the original input (skip connection)
+        x = self.final_norm(x) # Normalize the output
+        return x
 
 
-class CNN_RG(nn.Module):
+class CNN(nn.Module):
     def __init__(self, config: dict) -> None:
         super().__init__()
         hidden = config["hidden"]
         dropout = config['dropout']
         self.convolutions = nn.ModuleList(
             [
-                ConvBlock(1, hidden),
+                ConvBlock(1, hidden, dropout),
             ]
         )
 
         for i in range(config["num_layers"]):
-            self.convolutions.extend([ConvBlock(hidden, hidden)])
+            self.convolutions.extend([ConvBlock(hidden, hidden, dropout), nn.ReLU()])
         self.convolutions.append(nn.MaxPool2d(2, 2))
 
-        activation_map_size = config["shape"][0] // 2 * config["shape"][1] // 2
-        logger.info(f"Activation map size: {activation_map_size}")
-        logger.info(f"Input linear: {activation_map_size * hidden}")
+        # activation_map_size = config["shape"][0] // 2 * config["shape"][1] // 2
+        # logger.info(f"Activation map size: {activation_map_size}")
+        # logger.info(f"Input linear: {activation_map_size * hidden}")
 
         self.dense = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(activation_map_size * hidden, hidden),
+            nn.Linear((8*6) * hidden, hidden),
+            nn.BatchNorm1d(hidden),
             nn.ReLU(),
             nn.Dropout(dropout),  # Add dropout here
             nn.Linear(hidden, config["num_classes"]),
@@ -114,10 +175,12 @@ class CNN_RG(nn.Module):
         x = self.dense(x)
         return x
     
-class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
+
+    
+class ConvBlock_test(nn.Module):
+    def __init__(self, in_channels, out_channels, dropout):
         super().__init__()
-        dropout = config['dropout']
+#        dropout = config['dropout']
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(out_channels),
@@ -132,9 +195,9 @@ class ConvBlock(nn.Module):
         return self.conv(x)
     
 
-class ResidualBlock(nn.Module):
+class ResidualBlock_test(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
-        super(ResidualBlock, self).__init__()
+        super(ResidualBlock_test, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1)
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
@@ -154,7 +217,7 @@ class ResidualBlock(nn.Module):
         out = F.relu(out)
         return out
     
-class CNN(nn.Module):
+class CNN_test(nn.Module):
     def __init__(self, config: dict) -> None:
         super().__init__()
         hidden = config['hidden']
@@ -167,7 +230,7 @@ class CNN(nn.Module):
 #            self.convolutions.extend([ConvBlock(hidden, hidden), nn.ReLU()])
 
         for i in range(config['num_layers']):
-            self.convolutions.extend([ResidualBlock(hidden, hidden), nn.ReLU()])
+            self.convolutions.extend([ResidualBlock_test(hidden, hidden), nn.ReLU()])
         
         self.convolutions.append(nn.MaxPool2d(2, 2))
 

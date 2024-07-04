@@ -13,6 +13,7 @@ from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
 from ray.tune.search.bohb import TuneBOHB
 from mltrainer.preprocessors import BasePreprocessor
 from loguru import logger
+from typing import Dict
 
 SAMPLE_INT = tune.search.sample.Integer
 SAMPLE_FLOAT = tune.search.sample.Float

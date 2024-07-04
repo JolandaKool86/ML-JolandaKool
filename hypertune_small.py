@@ -14,6 +14,7 @@ from ray.tune.search.bohb import TuneBOHB
 from mltrainer.preprocessors import BasePreprocessor
 from loguru import logger
 from metrics import ThresholdedRecall
+from typing import Dict
 
 SAMPLE_INT = tune.search.sample.Integer
 SAMPLE_FLOAT = tune.search.sample.Float
