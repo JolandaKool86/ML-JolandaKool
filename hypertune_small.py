@@ -13,6 +13,7 @@ from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
 from ray.tune.search.bohb import TuneBOHB
 from mltrainer.preprocessors import BasePreprocessor
 from loguru import logger
+from metrics import ThresholdedRecall
 
 SAMPLE_INT = tune.search.sample.Integer
 SAMPLE_FLOAT = tune.search.sample.Float
@@ -47,7 +48,8 @@ def train(config: Dict):
     
     settings = TrainerSettings(
         epochs=10,
-        metrics=[accuracy, f1micro, f1macro, precision, recall],
+    #    metrics=[accuracy, f1micro, f1macro, precision, recall],
+        metrics=[accuracy, f1micro, f1macro, precision, recall, ThresholdedRecall(threshold=0.2, average='micro')],
     #    logdir=f"heart2D/{config['num_layers']}layers_{config['hidden']}hidden",
         logdir=Path("."),
         train_steps=len(trainstreamer),

@@ -47,3 +47,27 @@ class Precision:
         return precision_score(
             y, np.argmax(yhat, axis=1), average=self.average, zero_division=np.nan
         )
+
+class ThresholdedRecall:
+    def __init__(self, threshold: float = 0.2, average: str = 'micro'):
+        self.threshold = threshold
+        self.average = average
+
+    def __repr__(self) -> str:
+        return f"ThresholdedRecall_threshold_{self.threshold}_average_{self.average}"
+
+    def __call__(self, y, yhat):
+        yhat_thresholded = (yhat >= self.threshold).astype(int)
+        
+        if y.ndim == 1:
+            # Binary classification case
+            y_true = y
+            y_pred = yhat_thresholded[:, 0]  # Assuming binary classification has shape (n_samples, 1)
+        else:
+            # Multilabel case
+            y_true = y
+            y_pred = yhat_thresholded
+        
+        return recall_score(
+            y_true, y_pred, average=self.average, zero_division=np.nan
+        )

@@ -3,6 +3,7 @@ import math
 import torch
 from loguru import logger
 from torch import Tensor, nn
+import torch.nn.functional as F
 
 
 # class ConvBlock(nn.Module):
@@ -66,7 +67,7 @@ from torch import Tensor, nn
 #         return x
 
 
-class ConvBlock(nn.Module):
+class ConvBlock_RG(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.conv = nn.Sequential(
@@ -80,7 +81,7 @@ class ConvBlock(nn.Module):
         return self.conv(x)
 
 
-class CNN(nn.Module):
+class CNN_RG(nn.Module):
     def __init__(self, config: dict) -> None:
         super().__init__()
         hidden = config["hidden"]
@@ -110,6 +111,79 @@ class CNN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for conv in self.convolutions:
             x = conv(x)
+        x = self.dense(x)
+        return x
+    
+class ConvBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        dropout = config['dropout']
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+#            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Dropout(dropout)
+        )
+    def forward(self, x):
+        return self.conv(x)
+    
+
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride),
+                nn.BatchNorm2d(out_channels)
+            )
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
+    
+class CNN(nn.Module):
+    def __init__(self, config: dict) -> None:
+        super().__init__()
+        hidden = config['hidden']
+        dropout = config['dropout']
+        self.convolutions = nn.ModuleList([
+            ConvBlock(1, hidden),
+        ])
+
+#        for i in range(config['num_layers']):
+#            self.convolutions.extend([ConvBlock(hidden, hidden), nn.ReLU()])
+
+        for i in range(config['num_layers']):
+            self.convolutions.extend([ResidualBlock(hidden, hidden), nn.ReLU()])
+        
+        self.convolutions.append(nn.MaxPool2d(2, 2))
+
+        self.dense = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear((8*6) * hidden, hidden),
+            nn.ReLU(),
+            nn.Dropout(dropout),  # Add dropout here
+            nn.Linear(hidden, config['num_classes']),
+ #           nn.Sigmoid()
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        for conv in self.convolutions:
+            x = conv(x)
+#            print(f'After {conv.__class__.__name__}, shape: {x.shape}')
         x = self.dense(x)
         return x
     
