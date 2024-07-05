@@ -3,117 +3,99 @@ import math
 import torch
 from loguru import logger
 from torch import Tensor, nn
-import torch.nn.functional as F
 
 
-# class ConvBlock(nn.Module):
-#     def __init__(self, in_channels, out_channels, dropout):
-#         super().__init__()
-#   #      dropout = config['dropout']
-#         self.conv = nn.Sequential(
-#             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(out_channels),
-#             nn.ReLU(),
-#             nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(out_channels),
-#             nn.ReLU(),
-#    #         nn.MaxPool2d(kernel_size=2, stride=2),
-#             nn.Dropout(dropout)
-#         )
+class ConvBlock_BM(nn.Module):
+    """
+    Convolutional Block with Batch Normalization and ReLU activation.
 
-#         # Define a 1x1 convolution to match the dimensions if necessary
-#         self.match_dimensions = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1) if in_channels != out_channels else nn.Identity()
-        
-#         # BatchNorm layer after the addition of skip connection
-#         self.final_norm = nn.BatchNorm2d(out_channels)
+    This block consists of two convolutional layers, each followed by a ReLU activation function.
 
-#     def forward(self, x):
-#         identity = x.clone() # Save the input for the skip connection
-#         x = self.conv(x) # Pass through the convolutional block
-#         identity = self.match_dimensions(identity) # Match dimensions if necessary
-#         x += identity # Add the original input (skip connection)
-#         x = self.final_norm(x) # Normalize the output
-#         return x
+    Args:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+
+    Attributes:
+        conv (nn.Sequential): Sequential container with two convolutional layers and ReLU activations.
+    """
+
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+        )
+
+    def forward(self, x):
+        return self.conv(x)
 
 
-# class CNN(nn.Module):
-#     def __init__(self, config: dict) -> None:
-#         super().__init__()
-#         hidden = config['hidden']
-#         dropout = config['dropout']
-#         self.convolutions = nn.ModuleList([
-#             ConvBlock(1, hidden, dropout),
-#         ])
+class CNN_BM(nn.Module):
+    """
+    Convolutional Neural Network with multiple convolutional blocks and dense layers.
+
+    Args:
+        config (dict): Configuration dictionary containing:
+            - hidden (int): Number of hidden units.
+            - dropout (float): Dropout rate.
+            - num_layers (int): Number of convolutional layers.
+            - shape (tuple): Shape of the input data (height, width).
+            - num_classes (int): Number of output classes.
+
+    Attributes:
+        convolutions (nn.ModuleList): List of convolutional and pooling layers.
+        dense (nn.Sequential): Fully connected layers for classification.
+    """
+
+    def __init__(self, config: dict) -> None:
+        super().__init__()
+        hidden = config["hidden"]
+        dropout = config["dropout"]
+        self.convolutions = nn.ModuleList(
+            [
+                ConvBlock_BM(1, hidden, dropout),
+            ]
+        )
+
+        for i in range(config["num_layers"]):
+            self.convolutions.extend([ConvBlock_BM(hidden, hidden)])
+        self.convolutions.append(nn.MaxPool2d(2, 2))
+
+        activation_map_size = config["shape"][0] // 2 * config["shape"][1] // 2
+        logger.info(f"Activation map size: {activation_map_size}")
+        logger.info(f"Input linear: {activation_map_size * hidden}")
+
+        self.dense = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(activation_map_size * hidden, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, config["num_classes"]),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        for conv in self.convolutions:
+            x = conv(x)
+        x = self.dense(x)
+        return x
 
 
-#         for i in range(config['num_layers']):
-#             self.convolutions.extend([ConvBlock(hidden, hidden, dropout), nn.ReLU()])
-#         self.convolutions.append(nn.MaxPool2d(2, 2))
+class ResBlock(nn.Module):
+    """
+    Residual Block with Convolutional Layers and Batch Normalization.
 
-#         self.dense = nn.Sequential(
-#             nn.Flatten(),
-#             nn.Linear((8*6) * hidden, hidden),
-#             nn.ReLU(),
-#             nn.Dropout(dropout),  # Add dropout here
-#             nn.Linear(hidden, config['num_classes']),
-#             nn.Sigmoid()
-#         )
+    Args:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        dropout (float): Dropout rate.
 
-#     def forward(self, x: torch.Tensor) -> torch.Tensor:
-#         for conv in self.convolutions:
-#             x = conv(x)
-# #            print(f'After {conv.__class__.__name__}, shape: {x.shape}')
-#         x = self.dense(x)
-#         return x
+    Attributes:
+        conv (nn.Sequential): Sequence of convolutional, batch normalization, ReLU, and dropout layers.
+        match_dimensions (nn.Module): Convolutional layer or identity mapping to match input and output dimensions.
+        final_norm (nn.BatchNorm2d): Batch normalization layer applied after adding the identity shortcut.
+    """
 
-
-# class ConvBlock_RG(nn.Module):
-#     def __init__(self, in_channels, out_channels):
-#         super().__init__()
-#         self.conv = nn.Sequential(
-#             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
-#             nn.ReLU(),
-#             nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
-#             nn.ReLU(),
-#         )
-
-#     def forward(self, x):
-#         return self.conv(x)
-
-
-# class CNN_RG(nn.Module):
-#     def __init__(self, config: dict) -> None:
-#         super().__init__()
-#         hidden = config["hidden"]
-#         dropout = config['dropout']
-#         self.convolutions = nn.ModuleList(
-#             [
-#                 ConvBlock(1, hidden, dropout),
-#             ]
-#         )
-
-#         for i in range(config["num_layers"]):
-#             self.convolutions.extend([ConvBlock(hidden, hidden)])
-#         self.convolutions.append(nn.MaxPool2d(2, 2))
-
-#         activation_map_size = config["shape"][0] // 2 * config["shape"][1] // 2
-#         logger.info(f"Activation map size: {activation_map_size}")
-#         logger.info(f"Input linear: {activation_map_size * hidden}")
-
-#         self.dense = nn.Sequential(
-#             nn.Flatten(),
-#             nn.Linear(activation_map_size * hidden, hidden),
-#             nn.ReLU(),
-#             nn.Linear(hidden, config["num_classes"]),
-#         )
-
-    # def forward(self, x: torch.Tensor) -> torch.Tensor:
-    #     for conv in self.convolutions:
-    #         x = conv(x)
-    #     x = self.dense(x)
-    #     return x
-    
-class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, dropout):
         super().__init__()
         self.conv = nn.Sequential(
@@ -126,43 +108,51 @@ class ConvBlock(nn.Module):
             nn.Dropout(dropout),
         )
 
-        # Define a 1x1 convolution to match the dimensions if necessary
-        self.match_dimensions = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1) if in_channels != out_channels else nn.Identity()
-        
-        # BatchNorm layer after the addition of skip connection
+        self.match_dimensions = (
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1)
+            if in_channels != out_channels
+            else nn.Identity()
+        )
         self.final_norm = nn.BatchNorm2d(out_channels)
 
     def forward(self, x):
-        identity = x.clone() # Save the input for the skip connection
-        x = self.conv(x) # Pass through the convolutional block
-        identity = self.match_dimensions(identity) # Match dimensions if necessary
-        x += identity # Add the original input (skip connection)
-        x = self.final_norm(x) # Normalize the output
+        identity = x.clone()
+        x = self.conv(x)
+        identity = self.match_dimensions(identity)
+        x += identity
+        x = self.final_norm(x)
         return x
 
 
 class CNN(nn.Module):
+    """
+    Convolutional Neural Network with Residual and Convolutional Blocks.
+
+    Args:
+        config (dict): Configuration dictionary containing hidden units, dropout rate, number of layers, and number of output classes.
+
+    Attributes:
+        convolutions (nn.ModuleList): List of convolutional and residual blocks.
+        dense (nn.Sequential): Fully connected layers for classification.
+    """
+
     def __init__(self, config: dict) -> None:
         super().__init__()
         hidden = config["hidden"]
-        dropout = config['dropout']
+        dropout = config["dropout"]
         self.convolutions = nn.ModuleList(
             [
-                ConvBlock(1, hidden, dropout),
+                ResBlock(1, hidden, dropout),
             ]
         )
 
         for i in range(config["num_layers"]):
-            self.convolutions.extend([ConvBlock(hidden, hidden, dropout), nn.ReLU()])
+            self.convolutions.extend([ResBlock(hidden, hidden, dropout), nn.ReLU()])
         self.convolutions.append(nn.MaxPool2d(2, 2))
-
-        # activation_map_size = config["shape"][0] // 2 * config["shape"][1] // 2
-        # logger.info(f"Activation map size: {activation_map_size}")
-        # logger.info(f"Input linear: {activation_map_size * hidden}")
 
         self.dense = nn.Sequential(
             nn.Flatten(),
-            nn.Linear((8*6) * hidden, hidden),
+            nn.Linear((8 * 6) * hidden, hidden),
             nn.BatchNorm1d(hidden),
             nn.ReLU(),
             nn.Dropout(dropout),  # Add dropout here
@@ -174,93 +164,43 @@ class CNN(nn.Module):
             x = conv(x)
         x = self.dense(x)
         return x
-    
 
-    
-class ConvBlock_test(nn.Module):
-    def __init__(self, in_channels, out_channels, dropout):
-        super().__init__()
-#        dropout = config['dropout']
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-#            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Dropout(dropout)
-        )
-    def forward(self, x):
-        return self.conv(x)
-    
 
-class ResidualBlock_test(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1):
-        super(ResidualBlock_test, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1)
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        
-        self.shortcut = nn.Sequential()
-        if stride != 1 or in_channels != out_channels:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride),
-                nn.BatchNorm2d(out_channels)
-            )
-
-    def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
-        out += self.shortcut(x)
-        out = F.relu(out)
-        return out
-    
-class CNN_test(nn.Module):
-    def __init__(self, config: dict) -> None:
-        super().__init__()
-        hidden = config['hidden']
-        dropout = config['dropout']
-        self.convolutions = nn.ModuleList([
-            ConvBlock(1, hidden),
-        ])
-
-#        for i in range(config['num_layers']):
-#            self.convolutions.extend([ConvBlock(hidden, hidden), nn.ReLU()])
-
-        for i in range(config['num_layers']):
-            self.convolutions.extend([ResidualBlock_test(hidden, hidden), nn.ReLU()])
-        
-        self.convolutions.append(nn.MaxPool2d(2, 2))
-
-        self.dense = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear((8*6) * hidden, hidden),
-            nn.ReLU(),
-            nn.Dropout(dropout),  # Add dropout here
-            nn.Linear(hidden, config['num_classes']),
- #           nn.Sigmoid()
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        for conv in self.convolutions:
-            x = conv(x)
-#            print(f'After {conv.__class__.__name__}, shape: {x.shape}')
-        x = self.dense(x)
-        return x
-    
 class WeightedCrossEntropyLoss(nn.Module):
+    """
+    Custom implementation of CrossEntropyLoss with weights for imbalanced classes.
+
+    Args:
+        weight (Tensor): A manual rescaling weight given to each class. If given, it has to be a Tensor of size `C`.
+
+    Attributes:
+        weight (Tensor): The weight tensor.
+        criterion (nn.CrossEntropyLoss): The weighted cross-entropy loss function.
+    """
+
     def __init__(self, weight):
         super(WeightedCrossEntropyLoss, self).__init__()
         self.weight = weight
         self.criterion = nn.CrossEntropyLoss(weight=self.weight)
-    
+
     def forward(self, outputs, targets):
         return self.criterion(outputs, targets)
 
 
 class PositionalEncoding(nn.Module):
+    """
+    Positional Encoding module for adding positional information to the input embeddings.
+
+    Args:
+        d_model (int): The dimension of the model.
+        dropout (float): The dropout rate. Default is 0.1.
+        max_seq_len (int): The maximum sequence length. Default is 5000.
+
+    Attributes:
+        dropout (nn.Dropout): Dropout layer.
+        pe (Tensor): Positional encoding matrix.
+    """
+
     def __init__(self, d_model: int, dropout: float = 0.1, max_seq_len: int = 5000):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
@@ -276,15 +216,26 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
 
     def forward(self, x: Tensor) -> Tensor:
-        """
-        Arguments:
-            x: Tensor, shape ``[batch_size, seq_len, embedding_dim]``
-        """
         x = x + self.pe[:, : x.size(1), :]
         return self.dropout(x)
 
 
 class TransformerBlock(nn.Module):
+    """
+    Transformer Block consisting of multi-head self-attention and feed-forward layers.
+
+    Args:
+        hidden_size (int): The size of the hidden layers.
+        num_heads (int): The number of attention heads.
+        dropout (float): The dropout rate.
+
+    Attributes:
+        attention (nn.MultiheadAttention): Multi-head self-attention layer.
+        ff (nn.Sequential): Feed-forward neural network.
+        layer_norm1 (nn.LayerNorm): Layer normalization after attention layer.
+        layer_norm2 (nn.LayerNorm): Layer normalization after feed-forward layer.
+    """
+
     def __init__(self, hidden_size, num_heads, dropout):
         # feel free to change the input parameters of the constructor
         super(TransformerBlock, self).__init__()
@@ -313,6 +264,24 @@ class TransformerBlock(nn.Module):
 
 
 class Transformer(nn.Module):
+    """
+    Transformer model consisting of convolutional input processing, positional encoding, and multiple transformer blocks.
+
+    Args:
+        config (dict): Configuration dictionary containing:
+            - hidden (int): Number of hidden units.
+            - dropout (float): Dropout rate.
+            - num_heads (int): Number of attention heads.
+            - num_blocks (int): Number of transformer blocks.
+            - output (int): Number of output classes.
+
+    Attributes:
+        conv1d (nn.Conv1d): 1D convolutional layer for initial input processing.
+        pos_encoder (PositionalEncoding): Positional encoding module.
+        transformer_blocks (nn.ModuleList): List of transformer blocks.
+        out (nn.Linear): Linear layer for final output.
+    """
+
     def __init__(
         self,
         config: dict,

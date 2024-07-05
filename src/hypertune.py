@@ -1,64 +1,77 @@
-from mads_datasets.base import BaseDatastreamer
-from mltrainer import Trainer, TrainerSettings, ReportTypes, metrics
-import models
-import datasets
-import metrics
 from pathlib import Path
-import torch
-import mlflow
+from typing import Dict
+
 import ray
+import torch
+from loguru import logger
+from mads_datasets.base import BaseDatastreamer
+from mltrainer import ReportTypes, Trainer, TrainerSettings, metrics
+from mltrainer.preprocessors import BasePreprocessor
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
 from ray.tune.search.bohb import TuneBOHB
-from mltrainer.preprocessors import BasePreprocessor
-from loguru import logger
-from typing import Dict
+
+import datasets
+import metrics
+import models
 
 SAMPLE_INT = tune.search.sample.Integer
 SAMPLE_FLOAT = tune.search.sample.Float
 
+
 # Define the training function for Ray Tune
 def train(config: Dict):
+    """
+    Training function to be used with Ray Tune for hyperparameter optimization.
+
+    Args:
+        config (Dict): Configuration dictionary containing hyperparameters and other settings.
+
+    Returns:
+        None
+    """
     device = "cpu"
     shape = (16, 12)
 
     data_dir = config["data_dir"]
-    trainfile = data_dir/"heart_train.parq"
-    testfile = data_dir/"heart_train.parq"
+    trainfile = data_dir / "heart_train.parq"
+    testfile = data_dir / "heart_train.parq"
     traindataset = datasets.HeartDataset2D(trainfile, target="target", shape=shape)
     testdataset = datasets.HeartDataset2D(testfile, target="target", shape=shape)
 
-    trainstreamer = BaseDatastreamer(traindataset, preprocessor=BasePreprocessor(), batchsize=32)
-    teststreamer = BaseDatastreamer(testdataset, preprocessor=BasePreprocessor(), batchsize=32)
+    trainstreamer = BaseDatastreamer(
+        traindataset, preprocessor=BasePreprocessor(), batchsize=32
+    )
+    teststreamer = BaseDatastreamer(
+        testdataset, preprocessor=BasePreprocessor(), batchsize=32
+    )
 
     model = models.CNN(config)
     model.to(device)
 
     # metrics
-    f1micro = metrics.F1Score(average='micro')
-    f1macro = metrics.F1Score(average='macro')
-    precision = metrics.Precision('micro')
-    recall = metrics.Recall('macro')
+    f1micro = metrics.F1Score(average="micro")
+    f1macro = metrics.F1Score(average="macro")
+    precision = metrics.Precision("micro")
+    recall = metrics.Recall("macro")
     accuracy = metrics.Accuracy()
-    
+
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
-    
+
     settings = TrainerSettings(
         epochs=10,
         metrics=[accuracy, f1micro, f1macro, precision, recall],
-    #    metrics=[accuracy, f1micro, f1macro, precision, recall, ThresholdedRecall(threshold=0.2, average='micro')],
-    #    logdir=f"heart2D/{config['num_layers']}layers_{config['hidden']}hidden",
         logdir=Path("."),
         train_steps=len(trainstreamer),
         valid_steps=len(teststreamer),
         reporttypes=[ReportTypes.RAY],
         scheduler_kwargs={"factor": 0.5, "patience": 5},
-        earlystop_kwargs=None
+        earlystop_kwargs=None,
     )
-    
+
     trainer = Trainer(
         model=model,
         settings=settings,
@@ -66,12 +79,16 @@ def train(config: Dict):
         optimizer=optimizer,
         traindataloader=trainstreamer.stream(),
         validdataloader=teststreamer.stream(),
-        scheduler=scheduler
+        scheduler=scheduler,
     )
-    
+
     trainer.loop()
 
+
 if __name__ == "__main__":
+    """
+    Main entry point for the script. Initializes Ray, sets up the configuration, and runs the hyperparameter optimization.
+    """
     ray.shutdown()
     ray.init()
 
@@ -82,7 +99,7 @@ if __name__ == "__main__":
     tune_dir = Path("models/ray").resolve()
 
     config = {
-   #     "num_layers": tune.randint(2, 5),
+        #     "num_layers": tune.randint(2, 5),
         "num_layers": 1,
         "hidden": tune.randint(16, 256),
         "num_classes": 2,
@@ -122,8 +139,3 @@ if __name__ == "__main__":
     )
 
     ray.shutdown()
-
-
-
-# Shutdown Ray
-#tune.shutdown()

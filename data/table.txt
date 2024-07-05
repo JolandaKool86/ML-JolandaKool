@@ -1,10 +1,28 @@
-Model	Experiment	Tested range	Layers	Units	Optimizer	Loss function	Epoch	Dropout	Threshold	F1 score	precision	recall	accuracy
-Model A	Benchmark		1	16	Adam	CrossEntropyLoss	5			0.940	0.953	0.928	0.914
-	Residual layer		1	16	Adam	CrossEntropyLoss	5			0.960	0.954	0.965	0.941
-	Batch norm (2x)		1	16	Adam	CrossEntropyLoss	5			0.942	0.950	0.935	0.917
-	Maxpool		1	16	Adam	CrossEntropyLoss	5			0.947	0.978	0.918	0.926
-	Dropout	0.1 - 0.5	1	16	Adam	CrossEntropyLoss	5	0.2		0.954	0.956	0.951	0.933
-	Number of layers	 1 - 6	3	16	Adam	CrossEntropyLoss	5			0.951	0.935	0.967	0.928
-	Number of units	16, 32, 64, 128, 256	1	64	Adam	CrossEntropyLoss	5			0.977	0.975	0.980	0.967
-	Adding threshold	0.1 - 0.4	1	16	Adam	CrossEntropyLoss	5		0.2	0.950	0.958	0.941	0.928
-	Best performing model		3	64	Adam	CrossEntropyLoss	5	0.2		0.972	0.961	0.985	0.960
+Model	NN	Experiment	Tested range	Layers	Units	Optimizer	Loss function	Epoch	Dropout	Threshold	F1 score	precision	recall	accuracy
+Model A	1D-CNN	Benchmark Model A									0.902	0.890	0.916	0.919
+Model B	2D-CNN	Benchmark Model B		1	16	Adam	CrossEntropyLoss	5			0.940	0.953	0.928	0.914
+Model B	2D-CNN	Residual layer		1	16	Adam	CrossEntropyLoss	5			0.960	0.954	0.965	0.941
+Model B	2D-CNN	Batch norm (2x)		1	16	Adam	CrossEntropyLoss	5			0.942	0.950	0.935	0.917
+Model B	2D-CNN	Maxpool		1	16	Adam	CrossEntropyLoss	5			0.947	0.978	0.918	0.926
+Model B	2D-CNN	Number of layers	 1 - 6	1	16	Adam	CrossEntropyLoss	5			0.940	0.953	0.928	0.914
+Model B	2D-CNN	Number of layers	 1 - 6	2	16	Adam	CrossEntropyLoss	5			0.930	0.940	0.921	0.900
+Model B	2D-CNN	Number of layers	 1 - 6	3	16	Adam	CrossEntropyLoss	5			0.951	0.935	0.967	0.928
+Model B	2D-CNN	Number of layers	 1 - 6	4	16	Adam	CrossEntropyLoss	5			0.929	0.922	0.936	0.896
+Model B	2D-CNN	Number of layers	 1 - 6	5	16	Adam	CrossEntropyLoss	5			0.839	0.723	1.000	0.723
+Model B	2D-CNN	Number of layers	 1 - 6	6	16	Adam	CrossEntropyLoss	5			0.839	0.723	1.000	0.723
+Model B	2D-CNN	Number of units	16 - 256	1	16	Adam	CrossEntropyLoss	5			0.940	0.953	0.928	0.914
+Model B	2D-CNN	Number of units	16 - 256	1	32	Adam	CrossEntropyLoss	5			0.930	0.940	0.921	0.900
+Model B	2D-CNN	Number of units	16 - 256	1	64	Adam	CrossEntropyLoss	5			0.977	0.975	0.980	0.967
+Model B	2D-CNN	Number of units	16 - 256	1	128	Adam	CrossEntropyLoss	5			0.973	0.952	0.995	0.960
+Model B	2D-CNN	Number of units	16 - 256	1	256	Adam	CrossEntropyLoss	5			0.977	0.977	0.977	0.967
+Model B	2D-CNN	Dropout	0.1 - 0.5	1	16	Adam	CrossEntropyLoss	5	0.1		0.943	0.977	0.911	0.920
+Model B	2D-CNN	Dropout	0.1 - 0.5	1	16	Adam	CrossEntropyLoss	5	0.2		0.954	0.956	0.951	0.933
+Model B	2D-CNN	Dropout	0.1 - 0.5	1	16	Adam	CrossEntropyLoss	5	0.3		0.951	0.979	0.924	0.931
+Model B	2D-CNN	Dropout	0.1 - 0.5	1	16	Adam	CrossEntropyLoss	5	0.4		0.943	0.955	0.932	0.919
+Model B	2D-CNN	Dropout	0.1 - 0.5	1	16	Adam	CrossEntropyLoss	5	0.5		0.953	0.978	0.930	0.934
+Model B	2D-CNN	Threshold	0.1 - 0.4	1	16	Adam	CrossEntropyLoss	5	0.1		0.955	0.975	0.936	0.936
+Model B	2D-CNN	Threshold	0.1 - 0.4	1	16	Adam	CrossEntropyLoss	5	0.2		0.950	0.958	0.941	0.928
+Model B	2D-CNN	Threshold	0.1 - 0.4	1	16	Adam	CrossEntropyLoss	5	0.3		0.942	0.953	0.932	0.918
+Model B	2D-CNN	Threshold	0.1 - 0.4	1	16	Adam	CrossEntropyLoss	5	0.4		0.946	0.959	0.933	0.923
+Model B	2D-CNN	Best performing model		3	139	Adam	CrossEntropyLoss	5	0.248		0.972	0.961	0.985	0.960
+
